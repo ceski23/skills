@@ -143,6 +143,222 @@ Use `assignVars` to assign all or partial contract sections, including within me
 
 This is ideal for responsive token values without defining separate full theme classes.
 
+## Centralized Design Tokens
+
+All design tokens live in a single `tokens.css.ts` (or `theme.css.ts`) file exported as a typed contract. Never scatter raw values across style files.
+
+### Structure
+
+Organize tokens by domain — colors, space, type, radii, shadows, motion — so the contract mirrors a design system hierarchy:
+
+```ts
+// tokens.css.ts
+import { createGlobalTheme } from '@vanilla-extract/css';
+
+export const vars = createGlobalTheme(':root', {
+  color: { /* ... */ },
+  space: { /* ... */ },
+  font: { /* ... */ },
+  fontSize: { /* ... */ },
+  lineHeight: { /* ... */ },
+  fontWeight: { /* ... */ },
+  letterSpacing: { /* ... */ },
+  radius: { /* ... */ },
+  shadow: { /* ... */ },
+  duration: { /* ... */ },
+  easing: { /* ... */ },
+});
+```
+
+### Rules
+
+- One authoritative source: import `vars` everywhere, never duplicate raw values
+- Domain keys must be consistent with design system layer names
+- Avoid deeply nested contracts beyond two levels — flatter is easier to traverse and auto-complete
+- When multiple themes exist, extract the contract with `createThemeContract` and implement each theme separately
+
+## Base CSS Variables
+
+Define primitive (base) variables first, then alias them into semantic tokens. This two-layer approach lets themes swap meaning without touching component styles.
+
+```ts
+// tokens.css.ts  — semantic aliases reference base vars
+import { createGlobalThemeContract, createGlobalTheme } from '@vanilla-extract/css';
+
+export const base = createGlobalTheme(':root', {
+  palette: {
+    blue50:  '#eff6ff',
+    blue500: '#3b82f6',
+    blue900: '#1e3a8a',
+    gray50:  '#f9fafb',
+    gray500: '#6b7280',
+    gray900: '#111827',
+    white:   '#ffffff',
+    black:   '#000000',
+  }
+});
+
+export const vars = createGlobalTheme(':root', {
+  color: {
+    primaryBg:        base.palette.blue500,
+    primaryText:      base.palette.white,
+    surfaceBg:        base.palette.gray50,
+    bodyText:         base.palette.gray900,
+    mutedText:        base.palette.gray500,
+  }
+});
+```
+
+> Use `createThemeContract` instead of `createGlobalTheme` for the contract layer when you have dark/light or multi-brand themes that each provide different values.
+
+## Tokenized Typographic Scale
+
+Define all typographic tokens in one place. Provide `fontSize`, `lineHeight`, `fontWeight`, `letterSpacing`, and `fontFamily` as separate domain keys for fine-grained composition.
+
+```ts
+// tokens.css.ts (type tokens excerpt)
+import { createGlobalTheme } from '@vanilla-extract/css';
+
+export const vars = createGlobalTheme(':root', {
+  // ...
+  font: {
+    sans:  '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+    mono:  '"Fira Code", "Cascadia Code", ui-monospace, monospace',
+    serif: '"Georgia", "Times New Roman", serif',
+  },
+  fontSize: {
+    xs:   '0.75rem',   // 12px
+    sm:   '0.875rem',  // 14px
+    base: '1rem',      // 16px
+    lg:   '1.125rem',  // 18px
+    xl:   '1.25rem',   // 20px
+    '2xl': '1.5rem',   // 24px
+    '3xl': '1.875rem', // 30px
+    '4xl': '2.25rem',  // 36px
+    '5xl': '3rem',     // 48px
+  },
+  lineHeight: {
+    none:    1,
+    tight:   1.25,
+    snug:    1.375,
+    normal:  1.5,
+    relaxed: 1.625,
+    loose:   2,
+  },
+  fontWeight: {
+    thin:       100,
+    light:      300,
+    regular:    400,
+    medium:     500,
+    semibold:   600,
+    bold:       700,
+    extrabold:  800,
+    black:      900,
+  },
+  letterSpacing: {
+    tighter: '-0.05em',
+    tight:   '-0.025em',
+    normal:  '0em',
+    wide:    '0.025em',
+    wider:   '0.05em',
+    widest:  '0.1em',
+  },
+});
+```
+
+Reference type tokens in style files:
+
+```ts
+// heading.css.ts
+import { style } from '@vanilla-extract/css';
+import { vars } from './tokens.css';
+
+export const h1 = style({
+  fontFamily:    vars.font.sans,
+  fontSize:      vars.fontSize['4xl'],
+  fontWeight:    vars.fontWeight.bold,
+  lineHeight:    vars.lineHeight.tight,
+  letterSpacing: vars.letterSpacing.tight,
+});
+
+export const body = style({
+  fontFamily: vars.font.sans,
+  fontSize:   vars.fontSize.base,
+  fontWeight: vars.fontWeight.regular,
+  lineHeight: vars.lineHeight.normal,
+});
+```
+
+### Rules
+
+- Never hard-code `font-size`, `font-weight`, or `line-height` in component styles — always use token references
+- Scale steps should follow a consistent ratio (common: 1.25 Major Third or 1.333 Perfect Fourth)
+- Keep `fontWeight` as string values (`'400'`) to avoid TypeScript numeric coercion issues with CSS variables
+
+## Tokenized Spacing Scale
+
+Use a single consistent numerical scale for all layout and component spacing. Reference tokens everywhere `margin`, `padding`, and `gap` appear.
+
+```ts
+// tokens.css.ts (space tokens excerpt)
+export const vars = createGlobalTheme(':root', {
+  // ...
+  space: {
+    px:  '1px',
+    0:   '0px',
+    0.5: '0.125rem',  // 2px
+    1:   '0.25rem',   // 4px
+    1.5: '0.375rem',  // 6px
+    2:   '0.5rem',    // 8px
+    2.5: '0.625rem',  // 10px
+    3:   '0.75rem',   // 12px
+    3.5: '0.875rem',  // 14px
+    4:   '1rem',      // 16px
+    5:   '1.25rem',   // 20px
+    6:   '1.5rem',    // 24px
+    7:   '1.75rem',   // 28px
+    8:   '2rem',      // 32px
+    9:   '2.25rem',   // 36px
+    10:  '2.5rem',    // 40px
+    12:  '3rem',      // 48px
+    14:  '3.5rem',    // 56px
+    16:  '4rem',      // 64px
+    20:  '5rem',      // 80px
+    24:  '6rem',      // 96px
+    32:  '8rem',      // 128px
+    40:  '10rem',     // 160px
+    48:  '12rem',     // 192px
+    56:  '14rem',     // 224px
+    64:  '16rem',     // 256px
+  },
+});
+```
+
+Reference space tokens in style files:
+
+```ts
+// card.css.ts
+import { style } from '@vanilla-extract/css';
+import { vars } from './tokens.css';
+
+export const card = style({
+  padding:      vars.space[6],
+  gap:          vars.space[4],
+  borderRadius: vars.radius.md,
+});
+
+export const cardHeader = style({
+  marginBottom: vars.space[3],
+});
+```
+
+### Rules
+
+- Use token references exclusively — treat raw `px`/`rem` values in component styles as a code-smell
+- Avoid inventing arbitrary steps outside the scale; if a design calls for an off-scale value, add it to the scale instead
+- When using sprinkles, map the `space` contract directly to `padding`, `margin`, and `gap` properties for a typed atomic spacing API
+- For responsive spacing, use `assignVars` with theme contracts inside `@media` blocks instead of redefining values per breakpoint in every component
+
 ## Runtime Theming (`@vanilla-extract/dynamic`)
 
 Use runtime APIs only when values are not known until runtime.
@@ -214,6 +430,8 @@ Useful advanced helpers:
 5. Need global root tokens? -> `createGlobalTheme` / `createGlobalThemeContract`
 6. Need runtime user/tenant values? -> `@vanilla-extract/dynamic`
 7. Need utility prop system? -> `sprinkles`
+8. Need design system foundation? -> `tokens.css.ts` with base palette → semantic aliases → typographic scale → spacing scale
+9. Need multi-theme capability? -> base variables in `base.css.ts`, semantic contract via `createThemeContract`, implement per theme
 
 ## Common Pitfalls to Avoid
 
@@ -224,6 +442,10 @@ Useful advanced helpers:
 - Using runtime theming APIs to create new CSS rules (they only assign existing vars)
 - Accidentally coupling all themes in one bundle when code splitting is required (use contracts)
 - Styling headings, buttons, or links globally instead of creating component-specific styles
+- Hard-coding raw `px`/`rem` values in component styles instead of referencing space or type tokens
+- Scattering design tokens across multiple files instead of centralizing in `tokens.css.ts`
+- Using numeric keys for decimal spacing steps — CSS variable names cannot start with a digit; quote them as strings or use word prefixes
+- Conflating base (primitive) tokens with semantic tokens — keep two distinct layers so themes only swap the semantic layer
 
 ## Suggested Component Pattern (React)
 
@@ -238,25 +460,41 @@ Useful advanced helpers:
 
 ## Simple Example: Button with 2 Recipe Variants + Theme Variables
 
-Use this as a starter pattern for a themed React button.
+Use this as a starter pattern for a themed React button backed by centralized design tokens.
 
 ```ts
-// theme.css.ts
-import { createTheme } from '@vanilla-extract/css';
+// tokens.css.ts
+import { createGlobalTheme } from '@vanilla-extract/css';
 
 export const vars = createGlobalTheme(':root', {
   color: {
-    primaryBg: '#2563eb',
-    primaryText: '#ffffff',
-    secondaryBg: '#e5e7eb',
+    primaryBg:     '#2563eb',
+    primaryText:   '#ffffff',
+    secondaryBg:   '#e5e7eb',
     secondaryText: '#111827',
+  },
+  space: {
+    2:  '0.5rem',   // 8px
+    3:  '0.75rem',  // 12px
+    4:  '1rem',     // 16px
+    5:  '1.25rem',  // 20px
+  },
+  fontSize: {
+    sm:   '0.875rem',
+    base: '1rem',
+  },
+  fontWeight: {
+    semibold: '600',
+  },
+  lineHeight: {
+    normal: '1.5',
   },
   radius: {
     md: '8px',
   },
   font: {
     sans: '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-  }
+  },
 });
 ```
 
@@ -271,16 +509,19 @@ import './theme.css.ts';
 ```ts
 // button.css.ts
 import { recipe, type RecipeVariants } from '@vanilla-extract/recipes';
-import { vars } from './theme.css';
+import { vars } from './tokens.css';
 
 export const button = recipe({
   base: {
     border: 0,
     borderRadius: vars.radius.md,
     cursor: 'pointer',
-    fontFamily: vars.font.sans,
-    fontWeight: 600,
-    padding: '10px 14px',
+    fontFamily:    vars.font.sans,
+    fontSize:      vars.fontSize.base,
+    fontWeight:    vars.fontWeight.semibold,
+    lineHeight:    vars.lineHeight.normal,
+    paddingBlock:  vars.space[3],
+    paddingInline: vars.space[5],
   },
   variants: {
     variant: {
@@ -324,7 +565,8 @@ export const Button = ({ variant, className, ...props }: Props) => (
 
 Notes:
 
-- Keep `vars` in style modules, then reference them in recipes for fully typed tokens.
+- Keep `vars` in `tokens.css.ts`; reference them in recipes for fully typed tokens — never hard-code raw values in component styles.
+- All space values (`paddingBlock`, `gap`, etc.) and type values (`fontSize`, `fontWeight`) must reference token keys from the centralized token file.
 - Attach `themeClass` (if using `createTheme`) at app/root level if the whole app shares one theme or use `createGlobalTheme`.
 - **Keep global styles minimal and reserved for resets only.** Never style headings (`h1`–`h6`), buttons, or other interactive elements globally. Instead, create component-specific styles via recipes, `styleVariants`, or dedicated style modules. This ensures consistent design and prevents cascade conflicts.
 
@@ -338,3 +580,8 @@ Before finalizing implementation, verify:
 - Theme approach matches runtime/static requirements
 - No invalid selector/global API usage
 - No unnecessary runtime logic for styles that can be static
+- All design tokens are centralized in `tokens.css.ts` (or equivalent)
+- Base (primitive) variables are separated from semantic token aliases
+- Typographic scale tokens (`fontSize`, `lineHeight`, `fontWeight`, `letterSpacing`) are defined and referenced consistently
+- Spacing scale covers all required steps; no raw `px`/`rem` literals in component styles
+- Space token keys are valid CSS variable name identifiers (no leading digits without string quoting)
